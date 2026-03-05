@@ -14,7 +14,6 @@
         * { 
             box-sizing: border-box; 
             font-family: Arial, sans-serif; 
-            /* Força o navegador a imprimir os fundos coloridos */
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
         }
@@ -39,11 +38,11 @@
         .btn-small { width: auto; padding: 5px 10px; font-size: 12px; margin-bottom: 0; background: #28a745; }
         .btn-remove { background: #dc3545; }
 
-        /* Estilos da Folha A4 (Preview) */
+        /* Estilos da Folha A4 (Preview Web) */
         .a4-sheet {
             background: white;
             width: 210mm;
-            min-height: 297mm;
+            min-height: 297mm; /* Garante no mínimo uma A4 */
             padding: 15mm;
             box-shadow: 0 0 10px rgba(0,0,0,0.5);
             margin: auto;
@@ -58,10 +57,31 @@
         
         .section-title { text-align: center; color: var(--primary-blue); text-transform: uppercase; font-size: 14px; margin: 20px 0 10px 0; font-weight: bold; }
         
-        table.doc-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        table.doc-table th, table.doc-table td { border: 1px solid var(--border-color); padding: 10px; text-align: left; font-size: 14px; }
+        table.doc-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 15px; 
+            table-layout: fixed; /* Força a tabela a respeitar a largura da página */
+        }
+        
+        /* CORREÇÃO DO BUG DE TEXTO INFINITO */
+        table.doc-table th, table.doc-table td { 
+            border: 1px solid var(--border-color); 
+            padding: 10px; 
+            text-align: left; 
+            font-size: 14px; 
+            word-wrap: break-word; /* Quebra palavras muito grandes */
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        
         table.doc-table th { color: var(--primary-blue); text-align: center; background: white; border-top: 2px solid var(--primary-blue); }
         table.doc-table tbody tr:nth-child(even) { background-color: #fcfcfc; }
+        
+        /* Define a largura da coluna de valor para não esmagar o texto */
+        table.doc-table th:last-child, table.doc-table td:last-child {
+            width: 150px;
+        }
 
         /* Estilos do Rodapé Fixo no Fundo */
         .doc-footer-content { margin-top: 20px; width: 100%; }
@@ -71,25 +91,23 @@
         .contact { font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: bold; }
         .total-badge { background: var(--primary-blue); color: white; padding: 10px 20px; border-radius: 20px; font-size: 18px; font-weight: bold; }
 
-        /* Estrutura de Tabela para empurrar o rodapé para baixo */
+        /* Estrutura de Tabela para Impressão */
         table.print-wrapper { width: 100%; min-height: 267mm; height: 100%; border-collapse: collapse; }
         thead.print-header { display: table-header-group; }
         tfoot.print-footer { display: table-footer-group; }
         tbody.print-body { display: table-row-group; }
-        /* O segredo para o rodapé ficar embaixo: a linha do meio expande ao máximo */
         tbody.print-body > tr > td { height: 100%; vertical-align: top; }
 
-        /* Responsividade e Configuração de Impressão */
         @media (max-width: 768px) {
             .app-container { flex-direction: column; overflow: auto; }
             .form-panel { width: 100%; box-shadow: none; }
             .preview-panel { display: none; }
         }
 
-        /* Configura a folha real da impressora */
+        /* Configurações específicas apenas para quando o PDF é gerado */
         @page {
             size: A4 portrait;
-            margin: 0; /* REMOVE OS TEXTOS MINÚSCULOS DO NAVEGADOR */
+            margin: 0; 
         }
 
         @media print {
@@ -101,7 +119,7 @@
                 position: relative; 
                 width: 100%; 
                 margin: 0; 
-                padding: 15mm; /* Margem de segurança do documento impresso */
+                padding: 15mm; 
                 box-shadow: none; 
                 min-height: 297mm;
             }
@@ -218,10 +236,7 @@
 
 <script>
     let dados = {
-        servicos: [
-            { desc: 'Locação de máquina', valor: '2000' },
-            { desc: 'Locação de Andaimes', valor: '3000' }
-        ],
+        servicos: [{ desc: '', valor: '' }],
         materiais: []
     };
 
@@ -303,7 +318,7 @@
         if(obs.trim() !== '') {
             obsSection.innerHTML = `
                 <div class="section-title">OBSERVAÇÕES</div>
-                <table class="doc-table"><tbody><tr><td>${obs.replace(/\n/g, '<br>')}</td></tr></tbody></table>
+                <table class="doc-table"><tbody><tr><td style="width: 100%;">${obs.replace(/\n/g, '<br>')}</td></tr></tbody></table>
             `;
         } else {
             obsSection.innerHTML = '';
@@ -330,13 +345,13 @@
         let html = `<div class="section-title">${titulo}</div><table class="doc-table">`;
         
         if(temValor) {
-            html += `<thead><tr><th>${titulo}</th><th style="width: 150px;">VALOR</th></tr></thead><tbody>`;
+            html += `<thead><tr><th style="width: auto;">${titulo}</th><th>VALOR</th></tr></thead><tbody>`;
             itens.forEach((item, index) => {
                 let v = item.valor ? formatarMoeda(item.valor) : '-';
                 html += `<tr><td>${index + 1}. ${item.desc}</td><td style="text-align: center;">${v}</td></tr>`;
             });
         } else {
-            html += `<thead><tr><th>${titulo}</th></tr></thead><tbody>`;
+            html += `<thead><tr><th style="width: 100%;">${titulo}</th></tr></thead><tbody>`;
             itens.forEach((item, index) => {
                 html += `<tr><td>${index + 1}. ${item.desc}</td></tr>`;
             });
