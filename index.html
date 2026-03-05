@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Orçamentos</title>
+    <style>
+        :root {
+            --primary-blue: #007BFF;
+            --light-bg: #f8f9fa;
+            --border-color: #ddd;
+        }
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { margin: 0; padding: 0; background-color: #e9ecef; display: flex; height: 100vh; }
+        
+        /* Layout Principal */
+        .app-container { display: flex; width: 100%; height: 100%; overflow: hidden; }
+        .form-panel { width: 400px; background: white; padding: 20px; overflow-y: auto; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; }
+        .preview-panel { flex: 1; padding: 20px; overflow-y: auto; display: flex; justify-content: center; background: #525659; }
+        
+        /* Estilos do Formulário */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .dynamic-list { border: 1px solid #eee; padding: 10px; margin-bottom: 15px; border-radius: 4px; background: var(--light-bg); }
+        .list-item { display: flex; gap: 10px; margin-bottom: 10px; }
+        .list-item input[type="text"] { flex: 2; }
+        .list-item input[type="number"] { flex: 1; }
+        button { background: var(--primary-blue); color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px; }
+        button:hover { background: #0056b3; }
+        .btn-small { width: auto; padding: 5px 10px; font-size: 12px; margin-bottom: 0; background: #28a745; }
+        .btn-remove { background: #dc3545; }
+
+        /* Estilos da Folha A4 (Preview) */
+        .a4-sheet {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            margin: auto;
+        }
+
+        /* Estilos Internos do Documento */
+        .doc-header h3 { color: var(--primary-blue); margin: 0 0 5px 0; text-transform: uppercase; font-size: 16px; }
+        .doc-header h1 { color: var(--primary-blue); margin: 0 0 5px 0; font-size: 20px; text-transform: uppercase; }
+        .doc-header p { color: var(--primary-blue); font-weight: bold; margin: 0; font-size: 12px; }
+        
+        .section-title { text-align: center; color: var(--primary-blue); text-transform: uppercase; font-size: 14px; margin: 20px 0 10px 0; font-weight: bold; }
+        
+        table.doc-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        table.doc-table th, table.doc-table td { border: 1px solid var(--border-color); padding: 10px; text-align: left; font-size: 14px; }
+        table.doc-table th { color: var(--primary-blue); text-align: center; background: white; border-top: 2px solid var(--primary-blue); }
+        table.doc-table tbody tr:nth-child(even) { background-color: #fcfcfc; }
+
+        .doc-footer-content { margin-top: 20px; }
+        .prazo-text { color: var(--primary-blue); font-weight: bold; text-transform: uppercase; font-size: 14px; }
+        .divider { height: 2px; background: var(--primary-blue); width: 150px; margin: 15px 0; }
+        .footer-bottom { display: flex; justify-content: space-between; align-items: center; }
+        .contact { font-size: 16px; display: flex; align-items: center; gap: 8px; font-weight: bold; }
+        .total-badge { background: var(--primary-blue); color: white; padding: 10px 20px; border-radius: 20px; font-size: 18px; font-weight: bold; }
+
+        /* Tabela Mestra para Repetição em Impressão */
+        table.print-wrapper { width: 100%; }
+        thead.print-header { display: table-header-group; }
+        tfoot.print-footer { display: table-footer-group; }
+        tbody.print-body { display: table-row-group; }
+
+        /* Responsividade para Celular e Impressão */
+        @media (max-width: 768px) {
+            .app-container { flex-direction: column; overflow: auto; }
+            .form-panel { width: 100%; box-shadow: none; }
+            .preview-panel { display: none; /* Esconde no celular, usa o preview do sistema */ }
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            .preview-panel { display: block; padding: 0; background: white; }
+            .a4-sheet, .a4-sheet * { visibility: visible; }
+            .a4-sheet { 
+                position: absolute; left: 0; top: 0; width: 100%; min-height: auto; 
+                margin: 0; padding: 0; box-shadow: none; 
+            }
+            @page { margin: 15mm; size: A4 portrait; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="form-panel">
+        <h2>Criar Orçamento</h2>
+        
+        <div class="form-group">
+            <label>Responsável</label>
+            <input type="text" id="f_responsavel" value="RUI FERREIRA" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+            <label>Nome da Obra/Cliente</label>
+            <input type="text" id="f_obra" placeholder="Ex: OBRA/JULIANO" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+            <label>Número do Orçamento</label>
+            <input type="number" id="f_numero" oninput="updatePreview()">
+        </div>
+        <div class="form-group">
+            <label>Data</label>
+            <input type="date" id="f_data" oninput="updatePreview()">
+        </div>
+
+        <div class="dynamic-list">
+            <label>Serviços</label>
+            <div id="servicos-container"></div>
+            <button class="btn-small" onclick="addItem('servicos')">+ Adicionar Serviço</button>
+        </div>
+
+        <div class="dynamic-list">
+            <label>Materiais</label>
+            <div id="materiais-container"></div>
+            <button class="btn-small" onclick="addItem('materiais')">+ Adicionar Material</button>
+        </div>
+
+        <div class="form-group">
+            <label>Adicional / Mão de Obra (R$)</label>
+            <input type="number" id="f_adicional" step="0.01" oninput="updatePreview()">
+        </div>
+
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea id="f_obs" rows="3" oninput="updatePreview()"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Prazo de Conclusão</label>
+            <input type="text" id="f_prazo" placeholder="Ex: 60 DIAS" oninput="updatePreview()">
+        </div>
+
+        <div class="form-group">
+            <label>Telefone de Contato</label>
+            <input type="text" id="f_telefone" value="(41) 9930-3754" oninput="updatePreview()">
+        </div>
+
+        <button onclick="imprimirPdf()">Imprimir / Salvar PDF</button>
+        <button style="background: #6c757d;" onclick="novoOrcamento()">Limpar e Gerar Novo Número</button>
+    </div>
+
+    <div class="preview-panel">
+        <div class="a4-sheet" id="print-area">
+            <table class="print-wrapper">
+                <thead class="print-header">
+                    <tr>
+                        <td>
+                            <div class="doc-header">
+                                <h3 id="p_responsavel">RUI FERREIRA</h3>
+                                <h1 id="p_titulo">ORÇAMENTO #0000 - OBRA</h1>
+                                <p id="p_data">Data: 00/00/0000</p>
+                            </div>
+                        </td>
+                    </tr>
+                </thead>
+
+                <tbody class="print-body">
+                    <tr>
+                        <td>
+                            <div id="p_servicos_section"></div>
+                            <div id="p_materiais_section"></div>
+                            <div id="p_obs_section"></div>
+                        </td>
+                    </tr>
+                </tbody>
+
+                <tfoot class="print-footer">
+                    <tr>
+                        <td>
+                            <div class="doc-footer-content">
+                                <div id="p_prazo_container">
+                                    <div class="prazo-text" id="p_prazo">PRAZO DE CONCLUSÃO: 60 DIAS</div>
+                                </div>
+                                <div class="divider"></div>
+                                <div class="footer-bottom">
+                                    <div class="contact">
+                                        📞 <span id="p_telefone">(41) 9930-3754</span>
+                                    </div>
+                                    <div class="total-badge" id="p_total">TOTAL: R$ 0,00</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let dados = {
+        servicos: [{ desc: '', valor: '' }],
+        materiais: []
+    };
+
+    // Inicialização
+    window.onload = () => {
+        // Carrega o número auto-incremental
+        let numId = localStorage.getItem('orcamento_id');
+        if(!numId) numId = 2502; // Começa do número do seu exemplo
+        document.getElementById('f_numero').value = numId;
+        
+        // Data de hoje
+        document.getElementById('f_data').valueAsDate = new Date();
+        
+        renderInputs('servicos');
+        renderInputs('materiais');
+        updatePreview();
+    };
+
+    // Adiciona novo item na lista
+    function addItem(tipo) {
+        dados[tipo].push({ desc: '', valor: '' });
+        renderInputs(tipo);
+        updatePreview();
+    }
+
+    // Remove item da lista
+    function removeItem(tipo, index) {
+        dados[tipo].splice(index, 1);
+        renderInputs(tipo);
+        updatePreview();
+    }
+
+    // Renderiza os campos de input no painel esquerdo
+    function renderInputs(tipo) {
+        const container = document.getElementById(`${tipo}-container`);
+        container.innerHTML = '';
+        dados[tipo].forEach((item, index) => {
+            container.innerHTML += `
+                <div class="list-item">
+                    <input type="text" placeholder="Descrição" value="${item.desc}" oninput="updateData('${tipo}', ${index}, 'desc', this.value)">
+                    <input type="number" placeholder="Valor (opcional)" value="${item.valor}" oninput="updateData('${tipo}', ${index}, 'valor', this.value)">
+                    <button class="btn-small btn-remove" onclick="removeItem('${tipo}', ${index})">X</button>
+                </div>
+            `;
+        });
+    }
+
+    // Atualiza os dados quando digita
+    function updateData(tipo, index, campo, valor) {
+        dados[tipo][index][campo] = valor;
+        updatePreview();
+    }
+
+    // Formata Moeda Brasileira
+    function formatarMoeda(valor) {
+        return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    // Função Principal que atualiza o PDF visualmente
+    function updatePreview() {
+        // 1. Textos Simples
+        document.getElementById('p_responsavel').innerText = document.getElementById('f_responsavel').value;
+        
+        let num = document.getElementById('f_numero').value;
+        let obra = document.getElementById('f_obra').value;
+        document.getElementById('p_titulo').innerText = `ORÇAMENTO #${num}${obra ? '- '+obra : ''}`;
+        
+        let dataInput = document.getElementById('f_data').value;
+        if(dataInput) {
+            let d = new Date(dataInput + 'T00:00:00');
+            document.getElementById('p_data').innerText = `Data: ${d.toLocaleDateString('pt-BR')}`;
+        }
+
+        let prazo = document.getElementById('f_prazo').value;
+        let prazoContainer = document.getElementById('p_prazo_container');
+        if(prazo.trim() !== "") {
+            prazoContainer.style.display = 'block';
+            document.getElementById('p_prazo').innerText = `PRAZO DE CONCLUSÃO: ${prazo}`;
+        } else {
+            prazoContainer.style.display = 'none';
+        }
+
+        document.getElementById('p_telefone').innerText = document.getElementById('f_telefone').value;
+
+        // 2. Tabelas Dinâmicas (Serviços e Materiais)
+        renderizarTabelaPreview('servicos', 'SERVIÇO');
+        renderizarTabelaPreview('materiais', 'MATERIAIS');
+
+        // 3. Observações
+        let obs = document.getElementById('f_obs').value;
+        let obsSection = document.getElementById('p_obs_section');
+        if(obs.trim() !== '') {
+            obsSection.innerHTML = `
+                <div class="section-title">OBSERVAÇÕES</div>
+                <table class="doc-table"><tbody><tr><td>${obs.replace(/\n/g, '<br>')}</td></tr></tbody></table>
+            `;
+        } else {
+            obsSection.innerHTML = '';
+        }
+
+        // 4. Cálculos do Total
+        let totalGeral = 0;
+        dados.servicos.forEach(i => totalGeral += Number(i.valor) || 0);
+        dados.materiais.forEach(i => totalGeral += Number(i.valor) || 0);
+        totalGeral += Number(document.getElementById('f_adicional').value) || 0;
+
+        document.getElementById('p_total').innerText = `TOTAL: ${formatarMoeda(totalGeral)}`;
+    }
+
+    // Helper para criar as tabelas no preview
+    function renderizarTabelaPreview(tipo, titulo) {
+        let secao = document.getElementById(`p_${tipo}_section`);
+        let itens = dados[tipo].filter(i => i.desc.trim() !== ''); // Só pega itens com texto
+        
+        if(itens.length === 0) {
+            secao.innerHTML = '';
+            return;
+        }
+
+        // Verifica se algum item tem valor preenchido para mostrar a coluna "VALOR"
+        let temValor = itens.some(i => i.valor !== '' && Number(i.valor) > 0);
+
+        let html = `<div class="section-title">${titulo}</div><table class="doc-table">`;
+        
+        if(temValor) {
+            html += `<thead><tr><th>${titulo}</th><th style="width: 150px;">VALOR</th></tr></thead><tbody>`;
+            itens.forEach((item, index) => {
+                let v = item.valor ? formatarMoeda(item.valor) : '-';
+                html += `<tr><td>${index + 1}. ${item.desc}</td><td style="text-align: center;">${v}</td></tr>`;
+            });
+        } else {
+            html += `<thead><tr><th>${titulo}</th></tr></thead><tbody>`;
+            itens.forEach((item, index) => {
+                html += `<tr><td>${index + 1}. ${item.desc}</td></tr>`;
+            });
+        }
+        
+        html += `</tbody></table>`;
+        secao.innerHTML = html;
+    }
+
+    // Ação de Imprimir/Salvar
+    function imprimirPdf() {
+        // Salva o número atual como próximo para a próxima vez
+        let atual = document.getElementById('f_numero').value;
+        localStorage.setItem('orcamento_id', parseInt(atual) + 1);
+        
+        // Aciona o print nativo do navegador
+        window.print();
+    }
+
+    // Ação de Novo Orçamento
+    function novoOrcamento() {
+        if(confirm("Limpar os dados e gerar um novo número?")) {
+            let atual = localStorage.getItem('orcamento_id') || 2502;
+            document.getElementById('f_numero').value = atual;
+            document.getElementById('f_obra').value = '';
+            dados.servicos = [{ desc: '', valor: '' }];
+            dados.materiais = [];
+            document.getElementById('f_adicional').value = '';
+            document.getElementById('f_obs').value = '';
+            document.getElementById('f_prazo').value = '';
+            
+            renderInputs('servicos');
+            renderInputs('materiais');
+            updatePreview();
+        }
+    }
+</script>
+
+</body>
+</html>
