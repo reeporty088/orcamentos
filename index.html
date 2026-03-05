@@ -98,7 +98,7 @@
            ========================================================= */
         @page {
             size: A4 portrait;
-            margin: 15mm; /* Margem física gerida pela própria impressora */
+            margin: 0; /* ZERADO: Mata os textos padrões do navegador (Data, URL, etc) */
         }
 
         @media print {
@@ -123,26 +123,26 @@
                 height: auto !important;
                 min-height: auto !important;
                 margin: 0 !important; 
-                padding: 0 !important; /* Retira o padding para usar a margem do @page */
+                padding: 15mm !important; /* Retorna a margem lateral para os itens não colarem na borda */
                 box-shadow: none !important; 
                 display: block !important;
             }
 
-            /* FIXA O CABEÇALHO NO TOPO DE TODAS AS FOLHAS */
+            /* FIXA O CABEÇALHO NO TOPO DE TODAS AS FOLHAS (Respeitando a margem física) */
             #header-content {
                 position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
+                top: 15mm; 
+                left: 15mm;
+                width: calc(100% - 30mm); 
                 background: white;
             }
 
-            /* FIXA O RODAPÉ NA BASE DE TODAS AS FOLHAS */
+            /* FIXA O RODAPÉ NA BASE DE TODAS AS FOLHAS (Respeitando a margem física) */
             #footer-content {
                 position: fixed;
-                bottom: 0;
-                left: 0;
-                width: 100%;
+                bottom: 15mm; 
+                left: 15mm;
+                width: calc(100% - 30mm);
                 background: white;
             }
 
